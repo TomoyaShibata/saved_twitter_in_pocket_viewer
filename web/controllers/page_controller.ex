@@ -100,15 +100,18 @@ defmodule PocketTwitterImageViewer.PageController do
   end
 
   def getTweetStatuses(conn, body) do
-    body_map = body
+    tweet_ids = body
                |> Poison.decode!
                |> Map.get("list", "zoi")
                |> Enum.map(fn({k, v}) -> %{
                     "resolved_url": Map.get(v, "resolved_url", "zoi"), 
                     "sort_id": Map.get(v, "sort_id", "0")
-                  } end)
+                 } end)
+               |> Enum.filter(fn(m) -> Regex.match?(~r/status/, Map.get(m, :resolved_url)) end)
+               |> Enum.map(fn(m) -> Map.get(m, :resolved_url) |> String.split("/") |> List.last end)
+               |> Enum.join(",")
 
-    json conn, body_map
+    json conn, tweet_ids
   end
 
   def getTweetStatus(conn, _params) do
