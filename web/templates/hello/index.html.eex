@@ -1,0 +1,14 @@
+<style>
+  html, body {
+    background: #37678F;
+    height: 100%;
+    min-height: 100%;
+  }
+
+  my-app {
+    font-family: "Hiragino Maru Gothic W4 JIS2004", "游ゴシック", YuGothic, "ヒラギノ角ゴ ProN W3", "Hiragino Kaku Gothic ProN", "メイリオ", Meiryo, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 700;
+  }
+</style>
+
+<my-app>Loading…</my-app>
