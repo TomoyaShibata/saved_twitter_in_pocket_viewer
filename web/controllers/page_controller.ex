@@ -110,25 +110,25 @@ defmodule PocketTwitterImageViewer.PageController do
                |> Enum.filter(fn(m) -> Regex.match?(~r/status/, Map.get(m, :resolved_url)) end)
                |> Enum.map(fn(m) -> Map.get(m, :resolved_url) |> String.split("/") |> List.last end)
                |> Enum.join(",")
+               |> getTweetStatus
 
     json conn, tweet_ids
   end
 
-  def getTweetStatus(conn, _params) do
-    bearer_access_token = PocketTwitterImageViewer.ConstModule.bearer_access_token
-    tweet_id = "790773129089953792"
-    url = "https://api.twitter.com/1.1/statuses/show.json?id=#{tweet_id}"
-    headers = [{ "Authorization", "Bearer #{bearer_access_token}" }]
+  def getTweetStatus(tweet_ids) do
+    Logger.info tweet_ids
+    url = "https://api.twitter.com/1.1/statuses/lookup.json?id=#{tweet_ids}"
+    headers = [{ "Authorization", "Bearer #{PocketTwitterImageViewer.ConstModule.bearer_access_token}" }]
 
     response = HTTPoison.get!(url, headers)
     case response do
       %{ status_code: 200, body: body } ->
         body_json = body
                     |> Poison.decode!
-        json conn, body_json
+        body_json
       %{ status_code: code, body: body } ->
         Logger.info "response: #{inspect body}"
-        json conn, body
+        body
     end
   end
 end
