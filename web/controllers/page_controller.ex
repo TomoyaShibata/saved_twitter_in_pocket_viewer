@@ -4,6 +4,7 @@ defmodule PocketTwitterImageViewer.PageController do
   require Base
   require Logger
   require PocketTwitterImageViewer.ConstModule
+  require Timex
 
   def index(conn, _params) do
     render conn, "index.html"
@@ -58,10 +59,11 @@ defmodule PocketTwitterImageViewer.PageController do
     headers      = [{"Content-Type", "application/json; charset=UTF-8"}]
     url          = "https://getpocket.com/v3/get?consumer_key=#{PocketTwitterImageViewer.ConstModule.consumer_key}"
     access_token = "&access_token=#{PocketTwitterImageViewer.ConstModule.access_token}"
-    count        = "&count=10"
+    count        = "&count=30"
     tag          = "&tag=twitter"
-    sort         = "&sort=newest"
-    response     = HTTPoison.get!(url <> access_token <> count <> tag <> sort)
+    sort         = "&sort='newest'"
+    state        = "&state='all'"
+    response     = HTTPoison.get!(url <> access_token <> count <> tag <> sort <> state)
 
     case response do
       %{ status_code: 200 , body: body } ->
@@ -101,31 +103,37 @@ defmodule PocketTwitterImageViewer.PageController do
 
   def getTweetStatuses(conn, body) do
     tweet_ids = body
-               |> Poison.decode!
-               |> Map.get("list", "zoi")
-               |> Enum.map(fn({k, v}) -> %{
-                    "resolved_url": Map.get(v, "resolved_url", "zoi"), 
-                    "sort_id": Map.get(v, "sort_id", "0")
-                 } end)
-               |> Enum.filter(fn(m) -> Regex.match?(~r/status/, Map.get(m, :resolved_url)) end)
-               |> Enum.map(fn(m) -> Map.get(m, :resolved_url) |> String.split("/") |> List.last end)
-               |> Enum.join(",")
-               |> getTweetStatus
+                |> Poison.decode!
+                |> Map.get("list", "zoi")
+                |> Enum.map(fn({k, v}) -> %{
+                      "resolved_url": Map.get(v, "resolved_url", "zoi"), 
+                      "sort_id": Map.get(v, "sort_id", "0"),
+                      "resolved_title": Map.get(v, "resolved_title")
+                  } end)
+                |> Enum.sort(&(Map.get(&1, :sort_id)) < Map.get(&2, :sort_id))
+                |> Enum.filter(fn(m) -> Regex.match?(~r/status/, Map.get(m, :resolved_url)) end)
+                |> Enum.map(fn(m) -> Map.get(m, :resolved_url) |> String.split("/") |> List.last end)
+                |> statusesLookup
 
     json conn, tweet_ids
   end
 
-  def getTweetStatus(tweet_ids) do
-    Logger.info tweet_ids
-    url = "https://api.twitter.com/1.1/statuses/lookup.json?id=#{tweet_ids}"
+  def statusesLookup(tweet_ids) do
+    url = "https://api.twitter.com/1.1/statuses/lookup.json?id=" <> Enum.join(tweet_ids, ",")
     headers = [{ "Authorization", "Bearer #{PocketTwitterImageViewer.ConstModule.bearer_access_token}" }]
 
     response = HTTPoison.get!(url, headers)
     case response do
       %{ status_code: 200, body: body } ->
-        body_json = body
-                    |> Poison.decode!
-        body_json
+        sorted_body_json = tweet_ids
+                           |> Enum.map(fn(tweet_id) ->
+                             body
+                             |> Poison.decode!
+                             |> Enum.find(fn(b) ->
+                               Map.get(b, "id_str") == tweet_id
+                             end)
+                           end)
+        sorted_body_json
       %{ status_code: code, body: body } ->
         Logger.info "response: #{inspect body}"
         body
